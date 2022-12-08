@@ -1,3 +1,4 @@
+use log::warn;
 use tokio::time::Instant;
 
 use super::*;
@@ -475,7 +476,22 @@ impl PeerConnectionInternal {
                 )
                 .await
             }
-            _ => return Err(Error::ErrPeerConnAddTransceiverFromKindSupport),
+            RTCRtpTransceiverDirection::Inactive => {
+                RTCRtpTransceiver::new(
+                    None,
+                    None,
+                    RTCRtpTransceiverDirection::Inactive,
+                    kind,
+                    vec![],
+                    Arc::clone(&self.media_engine),
+                    Some(Box::new(self.make_negotiation_needed_trigger())),
+                )
+                .await
+            }
+            _ => {
+                warn!("Unsupported direction: {:?}", direction);
+                return Err(Error::ErrPeerConnAddTransceiverFromKindSupport);
+            }
         };
 
         self.add_rtp_transceiver(Arc::clone(&t)).await;
@@ -529,6 +545,7 @@ impl PeerConnectionInternal {
                 ));
                 (None, s)
             }
+            RTCRtpTransceiverDirection::Inactive => (None, None),
             _ => return Err(Error::ErrPeerConnAddTransceiverFromTrackSupport),
         };
 
